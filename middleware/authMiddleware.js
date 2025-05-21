@@ -1,31 +1,31 @@
-const db = require('../config/db');
+const jwt = require('jsonwebtoken');
 
 
-// Create user table if not exists
-const createUserTable = async () => {
-    try {
-        await db.none(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(100) NOT NULL,
-        email VARCHAR(100) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL,
-        role VARCHAR(10) DEFAULT 'user',
-        is_verified BOOLEAN DEFAULT false,
-        verification_token TEXT,
-        reset_token TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-        console.log("✅ User table ensured.");
-    } catch (err) {
-        console.error("❌ Error creating user table:", err);
-    }
+// Protects routes for users with 'admin' role
+exports.isAdmin = (req, res, next) => {
+    const token = req.cookies.jwt;
+    if (!token) return res.redirect('/login');
+
+
+    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+        if (err) return res.redirect('/login');
+        if (decoded.role !== 'admin') return res.redirect('/user/dashboard');
+        next();
+    });
 };
 
 
-module.exports = {
-    createUserTable
+// Protects routes for users (admin or user)
+exports.isAuthenticated = (req, res, next) => {
+    const token = req.cookies.jwt;
+    if (!token) return res.redirect('/login');
+
+
+    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+        if (err) return res.redirect('/login');
+        req.user = decoded;
+        next();
+    });
 };
 
 
